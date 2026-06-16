@@ -1,0 +1,19 @@
+#ifndef RESOURCES_H
+#define RESOURCES_H
+
+#include <GL/glut.h>
+
+// All game assets loaded once and kept across restarts.
+typedef struct {
+	GLuint armsDefault;   // running arms
+	GLuint armsCrash;     // arms at the moment of the crash
+	GLuint legs;          // legs (appear while ducking/sliding)
+	GLuint legsJump;      // legs seen from above during the jump
+	GLuint bam;           // collision onomatopoeia (comic-book style)
+	int loaded;
+} Resources;
+
+// Loads every asset into 'r' (textures). Call once.
+void resourcesLoad(Resources *r);
+
+#endif

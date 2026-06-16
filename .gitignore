@@ -1,0 +1,10 @@
+# Compiled binary
+/templerun
+
+# Object files
+*.o
+*.obj
+
+# Editor / OS
+*.swp
+.DS_Store
