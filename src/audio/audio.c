@@ -6,8 +6,10 @@
 
 static ma_engine g_engine;
 static ma_sound  g_running;
+static ma_sound  g_music;
 static int g_engineOk = 0;
 static int g_runningLoaded = 0;
+static int g_musicLoaded = 0;
 static int g_runningOn = 0;
 
 void audioInit(void) {
@@ -26,6 +28,17 @@ void audioInit(void) {
 		printf("[audio] could not load assets/running.mp3\n");
 	}
 
+	// background music (drums): loops continuously, kept low under the SFX
+	if (ma_sound_init_from_file(&g_engine, "assets/drum.mp3",
+	                            MA_SOUND_FLAG_DECODE, NULL, NULL, &g_music) == MA_SUCCESS) {
+		ma_sound_set_looping(&g_music, MA_TRUE);
+		ma_sound_set_volume(&g_music, 0.45f);
+		ma_sound_start(&g_music);
+		g_musicLoaded = 1;
+	} else {
+		printf("[audio] could not load assets/drum.mp3\n");
+	}
+
 	printf("[audio] engine started\n");
 }
 
@@ -33,6 +46,10 @@ void audioShutdown(void) {
 	if (g_runningLoaded) {
 		ma_sound_uninit(&g_running);
 		g_runningLoaded = 0;
+	}
+	if (g_musicLoaded) {
+		ma_sound_uninit(&g_music);
+		g_musicLoaded = 0;
 	}
 	if (g_engineOk) {
 		ma_engine_uninit(&g_engine);

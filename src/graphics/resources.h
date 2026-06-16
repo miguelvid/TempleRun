@@ -9,7 +9,9 @@ typedef struct {
 	GLuint armsCrash;     // arms at the moment of the crash
 	GLuint legs;          // legs (appear while ducking/sliding)
 	GLuint legsJump;      // legs seen from above during the jump
-	GLuint bam;           // collision onomatopoeia (comic-book style)
+	GLuint boim;          // comic popup shown on jump
+	GLuint vupp;          // comic popup shown on slide/duck
+	GLuint cabrumm;       // comic onomatopoeia shown on the crash
 	int loaded;
 } Resources;
 

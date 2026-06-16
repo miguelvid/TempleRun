@@ -1,7 +1,9 @@
+#include <stdlib.h>
 #include <GL/glut.h>
 #include <GL/freeglut.h>
 
 #include "game.h"
+#include "audio.h"
 
 static int g_windowX = 50;
 static int g_windowY = 50;
@@ -75,6 +77,8 @@ static void setup(void) {
 	glFogf(GL_FOG_START, 20.0f);
 	glFogf(GL_FOG_END, 70.0f);
 
+	audioInit();
+	atexit(audioShutdown);   // stop the engine cleanly on exit
 	gameInit();
 }
 

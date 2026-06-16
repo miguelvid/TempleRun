@@ -33,6 +33,7 @@ typedef struct {
 	float duckTime;         // ms accumulated in the ducking pose
 	float lookLegs;         // 0..1 camera looks down at the legs during the jump
 	float popupTime;        // ms left showing the comic popup (jump/slide)
+	GLuint popupTex;        // which comic sprite the current popup shows
 } GameState;
 
 static GameState g;
@@ -55,6 +56,7 @@ static void resetRun(void) {
 	g.duckTime = 0.0f;
 	g.lookLegs = 0.0f;
 	g.popupTime = 0.0f;
+	g.popupTex = 0;
 }
 
 // Jump triggered by input: plays the sound and pops the comic sprite only on a
@@ -68,6 +70,7 @@ static void doJump(void) {
 	if (!wasJumping && g.player.jumping) {
 		audioPlay(SND_JUMP);
 		g.popupTime = POPUP_MS;
+		g.popupTex = res.boim;       // jump -> BOIM
 	}
 }
 
@@ -80,6 +83,7 @@ static void startDuck(void) {
 	if (!g.duckHeld) {
 		audioPlay(SND_SLIDE);
 		g.popupTime = POPUP_MS;
+		g.popupTex = res.vupp;       // slide/duck -> VUPP
 	}
 	g.duckHeld = 1;
 }
@@ -234,10 +238,9 @@ void gameRender(void) {
 	switch (g.phase) {
 		case PHASE_PLAYING:
 			drawViewModel();
-			// comic popup on jump/slide (right side), fading out.
-			// Placeholder art: the BAM png — swap for dedicated ones later.
-			if (g.popupTime > 0.0f && res.bam != 0) {
-				drawCornerSprite(res.bam, POPUP_FRAC, g.popupTime / POPUP_MS);
+			// comic popup on jump (BOIM) / slide (VUPP), right side, fading out
+			if (g.popupTime > 0.0f && g.popupTex != 0) {
+				drawCornerSprite(g.popupTex, POPUP_FRAC, g.popupTime / POPUP_MS);
 			}
 			drawHud(g.score);
 			break;
@@ -259,8 +262,8 @@ void gameRender(void) {
 			if (res.armsCrash != 0) {
 				drawArmsSprite(res.armsCrash, 0.0f, 1.0f);
 			}
-			if (res.bam != 0) {
-				drawCenterSprite(res.bam, 0.5f);
+			if (res.cabrumm != 0) {
+				drawCenterSprite(res.cabrumm, 0.5f);
 			}
 			// the game over screen only shows after the delay (the crash stays visible before)
 			if (g.gameOverTime >= GAME_OVER_DELAY) {
@@ -332,8 +335,8 @@ void gameOnSpecialDown(int key) {
 	}
 	if (key == GLUT_KEY_LEFT)  playerMoveLeft(&g.player);
 	if (key == GLUT_KEY_RIGHT) playerMoveRight(&g.player);
-	if (key == GLUT_KEY_UP)    playerJump(&g.player);
-	if (key == GLUT_KEY_DOWN)  g.duckHeld = 1;
+	if (key == GLUT_KEY_UP)    doJump();
+	if (key == GLUT_KEY_DOWN)  startDuck();
 }
 
 void gameOnSpecialUp(int key) {
