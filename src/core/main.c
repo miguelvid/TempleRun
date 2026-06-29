@@ -4,13 +4,15 @@
 
 #include "game.h"
 #include "audio.h"
+#include "config.h"
 
 static int g_windowX = 50;
 static int g_windowY = 50;
 static int g_width = 1248;
 static int g_height = 756;
 static char g_title[] = "Temple Run 3D";
-static int g_timerInterval = 16;
+static int g_timerInterval = 5;   // how often we sample real time (ms); the
+                                  // simulation still advances in MS_PER_FRAME steps
 
 static void onDisplay(void) {
 	gameRender();
@@ -58,7 +60,29 @@ static void onMouse(int button, int state, int x, int y) {
 
 static void onTimer(int value) {
 	(void)value;
-	gameUpdate();
+
+	// Fixed-timestep with accumulator: advance the simulation in fixed
+	// MS_PER_FRAME steps based on real elapsed time, so the game feels the same
+	// regardless of how often (or unevenly) this timer actually fires.
+	static int lastTime = -1;
+	static float accumulator = 0.0f;
+
+	int now = glutGet(GLUT_ELAPSED_TIME);
+	if (lastTime < 0) {
+		lastTime = now;   // first tick: no elapsed time yet
+	}
+	accumulator += (float)(now - lastTime);
+	lastTime = now;
+
+	// cap to avoid a spiral of death after a stall (e.g. window lost focus)
+	if (accumulator > MAX_FRAME_MS) {
+		accumulator = MAX_FRAME_MS;
+	}
+
+	while (accumulator >= MS_PER_FRAME) {
+		gameUpdate();
+		accumulator -= MS_PER_FRAME;
+	}
 
 	glutPostRedisplay();
 	glutTimerFunc(g_timerInterval, onTimer, 0);

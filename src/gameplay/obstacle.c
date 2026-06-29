@@ -7,18 +7,31 @@ void obstaclesInit(Obstacle *obstacles) {
 	}
 }
 
-void spawnObstacle(Obstacle *obstacles, int lane, ObstacleType type) {
+void spawnObstacleAt(Obstacle *obstacles, int lane, ObstacleType type, float z) {
 	for (int i = 0; i < MAX_OBSTACLES; i++) {
 		if (!obstacles[i].active) {
 			obstacles[i].active = 1;
 			obstacles[i].lane = lane;
 			obstacles[i].type = type;
-			obstacles[i].z = SPAWN_DIST;
-			obstacles[i].prevZ = SPAWN_DIST;
+			obstacles[i].z = z;
+			obstacles[i].prevZ = z;
 			obstacles[i].scored = 0;
 			return;
 		}
 	}
+}
+
+void spawnObstacle(Obstacle *obstacles, int lane, ObstacleType type) {
+	spawnObstacleAt(obstacles, lane, type, SPAWN_DIST);
+}
+
+int obstaclesAnyActive(const Obstacle *obstacles) {
+	for (int i = 0; i < MAX_OBSTACLES; i++) {
+		if (obstacles[i].active) {
+			return 1;
+		}
+	}
+	return 0;
 }
 
 void obstaclesUpdate(Obstacle *obstacles, float speed) {

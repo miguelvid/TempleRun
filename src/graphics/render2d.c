@@ -77,6 +77,8 @@ static const unsigned char FONT_DIGITS[10][7] = {
 	{0x0E,0x11,0x11,0x0F,0x01,0x02,0x0C}, // 9
 };
 static const unsigned char FONT_COLON[7] = {0x00,0x04,0x04,0x00,0x04,0x04,0x00};
+static const unsigned char FONT_PLUS[7]  = {0x00,0x04,0x04,0x1F,0x04,0x04,0x00};
+static const unsigned char FONT_SLASH[7] = {0x01,0x01,0x02,0x04,0x08,0x10,0x10};
 
 // Returns the 5x7 glyph of the character (case-insensitive), or NULL for space.
 static const unsigned char *pixelGlyph(char c) {
@@ -84,6 +86,8 @@ static const unsigned char *pixelGlyph(char c) {
 	if (c >= 'A' && c <= 'Z') return FONT_LETTERS[c - 'A'];
 	if (c >= '0' && c <= '9') return FONT_DIGITS[c - '0'];
 	if (c == ':') return FONT_COLON;
+	if (c == '+') return FONT_PLUS;
+	if (c == '/') return FONT_SLASH;
 	return NULL; // space / unsupported
 }
 

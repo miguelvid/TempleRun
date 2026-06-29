@@ -14,7 +14,10 @@
 #include "hud.h"
 #include "audio.h"
 
-typedef enum { PHASE_MENU, PHASE_PLAYING, PHASE_PAUSED, PHASE_GAMEOVER } GamePhase;
+// MENU -> PLAYING; crash -> GAMEOVER. Pausing freezes PLAYING.
+typedef enum {
+	PHASE_MENU, PHASE_PLAYING, PHASE_PAUSED, PHASE_GAMEOVER
+} GamePhase;
 
 typedef struct {
 	Player player;
@@ -34,10 +37,18 @@ typedef struct {
 	float lookLegs;         // 0..1 camera looks down at the legs during the jump
 	float popupTime;        // ms left showing the comic popup (jump/slide)
 	GLuint popupTex;        // which comic sprite the current popup shows
+	float bonusTime;        // ms left showing the "BONUS +5" text
+
+	GamePhase prePause;     // phase to return to when unpausing
 } GameState;
 
 static GameState g;
 static Resources res;
+
+// Phases where the player can move/jump/duck (only the endless run).
+static int playable(void) {
+	return g.phase == PHASE_PLAYING;
+}
 
 // Resets the run state and starts playing (used on ENTER from the menu and on R).
 static void resetRun(void) {
@@ -57,12 +68,21 @@ static void resetRun(void) {
 	g.lookLegs = 0.0f;
 	g.popupTime = 0.0f;
 	g.popupTex = 0;
+	g.bonusTime = 0.0f;
+
+	// lead-in: pre-spawn so the first blocks are met from ~25m (not ~80m). An
+	// obstacle at z is reached at totalDistance = Z_PLAYER - z; spacing matches
+	// spawnInterval so it blends into the regular stream that follows.
+	for (float arrive = 25.0f; arrive < 72.0f; arrive += g.spawnInterval) {
+		spawnObstacleAt(g.obstacles, rand() % NUM_LANES,
+		                (ObstacleType)(rand() % 3), Z_PLAYER - arrive);
+	}
 }
 
 // Jump triggered by input: plays the sound and pops the comic sprite only on a
 // real take-off (ignored if already airborne or not playing).
 static void doJump(void) {
-	if (g.phase != PHASE_PLAYING) {
+	if (!playable()) {
 		return;
 	}
 	int wasJumping = g.player.jumping;
@@ -77,7 +97,7 @@ static void doJump(void) {
 // Start ducking from input: plays the slide sound + popup only when the slide
 // actually begins (a fresh press, not while already holding).
 static void startDuck(void) {
-	if (g.phase != PHASE_PLAYING) {
+	if (!playable()) {
 		return;
 	}
 	if (!g.duckHeld) {
@@ -101,7 +121,7 @@ void gameInit(void) {
 }
 
 void gameUpdate(void) {
-	// the running loop plays only while actually playing
+	// the running loop plays while running
 	audioRunning(g.phase == PHASE_PLAYING);
 
 	// "look at legs" camera dip eases in/out (also keeps easing on game over)
@@ -113,20 +133,17 @@ void gameUpdate(void) {
 		return;
 	}
 
-	// menu and pause freeze the simulation
+	// only PLAYING simulates; menu/pause freeze
 	if (g.phase != PHASE_PLAYING) {
 		return;
 	}
 
-	// comic popup countdown
+	// fading popups count down while anything is simulating
 	if (g.popupTime > 0.0f) {
 		g.popupTime -= MS_PER_FRAME;
 	}
-
-	// speed rises with the score (up to the maximum)
-	g.speed = INITIAL_SPEED + g.score * SPEED_GAIN_PER_POINT;
-	if (g.speed > MAX_SPEED) {
-		g.speed = MAX_SPEED;
+	if (g.bonusTime > 0.0f) {
+		g.bonusTime -= MS_PER_FRAME;
 	}
 
 	// ducking is not infinite: stands up after MAX_DUCK_TIME even while holding.
@@ -143,14 +160,29 @@ void gameUpdate(void) {
 
 	playerUpdate(&g.player);
 
+	// speed rises with the distance traveled (up to the maximum)
+	g.speed = INITIAL_SPEED + g.totalDistance * SPEED_GAIN_PER_DIST;
+	if (g.speed > MAX_SPEED) {
+		g.speed = MAX_SPEED;
+	}
+
 	g.totalDistance += g.speed;
 	obstaclesUpdate(g.obstacles, g.speed);
 
 	// score when overtaking each obstacle
 	for (int i = 0; i < MAX_OBSTACLES; i++) {
-		if (g.obstacles[i].active && !g.obstacles[i].scored && g.obstacles[i].z > Z_PLAYER) {
-			g.obstacles[i].scored = 1;
-			g.score += 1;
+		Obstacle *o = &g.obstacles[i];
+		if (o->active && !o->scored && o->z > Z_PLAYER) {
+			o->scored = 1;
+			// bonus when it was cleared in your own lane: a LOW was jumped over
+			// or a HIGH was ducked under (a BLOCK in-lane always crashes, so it
+			// never reaches here). Dodging into another lane is the normal point.
+			int clearedInLane = (o->lane == g.player.lane) &&
+			                    (o->type == OBST_LOW || o->type == OBST_HIGH);
+			g.score += clearedInLane ? SCORE_BONUS : SCORE_PASS;
+			if (clearedInLane) {
+				g.bonusTime = BONUS_POPUP_MS;   // pop the "BONUS +5" text
+			}
 		}
 	}
 
@@ -159,7 +191,7 @@ void gameUpdate(void) {
 		if (g.obstacles[i].active && checkCollision(&g.player, &g.obstacles[i])) {
 			g.phase = PHASE_GAMEOVER;
 			audioPlay(SND_CRASH);
-			break;
+			return;
 		}
 	}
 
@@ -183,18 +215,18 @@ void gameUpdate(void) {
 static void drawViewModel(void) {
 	if (res.armsDefault != 0) {
 		float bob = sinf(g.totalDistance * 1.4f) * 12.0f;
-		// legs first (stay BEHIND), appearing as the slide progresses
-		if (res.legs != 0 && g.player.crouch > 0.01f) {
-			drawArmsSprite(res.legs, bob, g.player.crouch);
-		}
-		// jump: legs seen from above, rotated 180° so they look right.
-		// drop the image (proportional to screen height) to show more of the legs.
-		if (res.legsJump != 0 && g.lookLegs > 0.01f) {
+		// legs (stay BEHIND the arms): jump view (seen from above, rotated 180°)
+		// vs slide view. Show only the DOMINANT one so a quick jump<->duck never
+		// renders both overlapping — whichever pose has the larger weight wins.
+		if (res.legsJump != 0 && g.lookLegs > 0.01f && g.lookLegs >= g.player.crouch) {
 			float drop = glutGet(GLUT_WINDOW_HEIGHT) * LEGS_JUMP_DROP;
 			drawArmsSpriteEx(res.legsJump, bob - drop, g.lookLegs, 1);
+		} else if (res.legs != 0 && g.player.crouch > 0.01f) {
+			drawArmsSprite(res.legs, bob, g.player.crouch);
 		}
-		// arms on top, lower a bit during the slide but stay visible
-		drawArmsSprite(res.armsDefault, bob - g.player.crouch * 60.0f, 1.0f);
+		// arms on top: lower a bit during the slide AND the jump (stay visible)
+		float armsDrop = g.player.crouch * ARMS_DROP_SLIDE + g.lookLegs * ARMS_DROP_JUMP;
+		drawArmsSprite(res.armsDefault, bob - armsDrop, 1.0f);
 	} else {
 		drawArms(g.totalDistance, g.player.ducking);
 	}
@@ -217,14 +249,17 @@ void gameRender(void) {
 
 	// during the slide: rolls the camera sideways and looks a bit down.
 	// during the jump: also looks down (as if looking at the legs).
-	float roll = g.player.crouch * 0.14f;          // sideways roll (~8°)
+	// when changing lanes: banks into the move and looks toward the target lane.
+	// lateral > 0 means moving right; it decays as x reaches the target lane.
+	float lateral = laneToX(g.player.lane) - g.player.x;
+	float roll = g.player.crouch * CAM_ROLL_SLIDE + lateral * LANE_ROLL;
 	float upX = sinf(roll);
 	float upY = cosf(roll);
 	float dip = g.player.crouch * CAM_DIP_SLIDE + g.lookLegs * CAM_DIP_JUMP;
 
 	// first-person camera, looking into the corridor (-Z)
 	gluLookAt(camX, eyeHeight, camZ,
-	          camX, eyeHeight - 0.1f - dip, camZ - 1.0f,
+	          camX + lateral * LANE_LOOK, eyeHeight - 0.1f - dip, camZ - 1.0f,
 	          upX, upY, 0.0f);
 
 	drawCorridor(g.totalDistance);
@@ -242,11 +277,15 @@ void gameRender(void) {
 			if (g.popupTime > 0.0f && g.popupTex != 0) {
 				drawCornerSprite(g.popupTex, POPUP_FRAC, g.popupTime / POPUP_MS);
 			}
-			drawHud(g.score);
+			// "BONUS +5" text, fading out, when an obstacle was cleared in-lane
+			if (g.bonusTime > 0.0f) {
+				drawBonus(SCORE_BONUS, g.bonusTime / BONUS_POPUP_MS);
+			}
+			drawHud(g.score, (int)g.totalDistance);
 			break;
 		case PHASE_PAUSED:
 			drawViewModel();
-			drawHud(g.score);
+			drawHud(g.score, (int)g.totalDistance);
 			drawDimOverlay(0.55f);
 			drawPause();
 			break;
@@ -267,7 +306,7 @@ void gameRender(void) {
 			}
 			// the game over screen only shows after the delay (the crash stays visible before)
 			if (g.gameOverTime >= GAME_OVER_DELAY) {
-				drawGameOver(g.score);
+				drawGameOver(g.score, (int)g.totalDistance);
 			}
 			break;
 	}
@@ -275,29 +314,30 @@ void gameRender(void) {
 
 void gameOnKeyDown(unsigned char key) {
 	// ----- keys that work regardless of phase -----
-	if (key == 'p' || key == 'P') {           // pause toggle
+	if (key == 'p' || key == 'P' || key == 27) {   // pause toggle (P or ESC)
 		if (g.phase == PHASE_PLAYING) {
+			g.prePause = g.phase;
 			g.phase = PHASE_PAUSED;
 		} else if (g.phase == PHASE_PAUSED) {
-			g.phase = PHASE_PLAYING;
+			g.phase = g.prePause;
 		}
 		return;
 	}
-	if (key == 13) {                          // ENTER: start from the menu
+	if (key == 13) {                          // ENTER: start the run from the menu
 		if (g.phase == PHASE_MENU) {
 			resetRun();
 		}
 		return;
 	}
-	if (key == 'r' || key == 'R') {           // restart from the game over screen
+	if (key == 'r' || key == 'R') {           // restart from game over
 		if (g.phase == PHASE_GAMEOVER && g.gameOverTime >= GAME_OVER_DELAY) {
 			resetRun();
 		}
 		return;
 	}
 
-	// ----- gameplay keys only while playing -----
-	if (g.phase != PHASE_PLAYING) {
+	// ----- gameplay keys only while playable -----
+	if (!playable()) {
 		return;
 	}
 	switch (key) {
@@ -330,7 +370,7 @@ void gameOnKeyUp(unsigned char key) {
 }
 
 void gameOnSpecialDown(int key) {
-	if (g.phase != PHASE_PLAYING) {
+	if (!playable()) {
 		return;
 	}
 	if (key == GLUT_KEY_LEFT)  playerMoveLeft(&g.player);
@@ -346,8 +386,16 @@ void gameOnSpecialUp(int key) {
 }
 
 void gameOnMouseClick(int button, int state, int x, int y) {
-	(void)button;
-	(void)state;
 	(void)x;
 	(void)y;
+
+	// left click mirrors ENTER (start from menu) and R (restart on game over)
+	if (button != GLUT_LEFT_BUTTON || state != GLUT_DOWN) {
+		return;
+	}
+	if (g.phase == PHASE_MENU) {
+		resetRun();
+	} else if (g.phase == PHASE_GAMEOVER && g.gameOverTime >= GAME_OVER_DELAY) {
+		resetRun();
+	}
 }

@@ -18,6 +18,9 @@ typedef struct {
 
 void obstaclesInit(Obstacle *obstacles);
 void spawnObstacle(Obstacle *obstacles, int lane, ObstacleType type);
+// Same, but born at a custom Z (used by the run's lead-in pre-spawn).
+void spawnObstacleAt(Obstacle *obstacles, int lane, ObstacleType type, float z);
 void obstaclesUpdate(Obstacle *obstacles, float speed);
+int obstaclesAnyActive(const Obstacle *obstacles);
 
 #endif

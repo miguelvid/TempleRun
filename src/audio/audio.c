@@ -3,13 +3,16 @@
 #include <stdio.h>
 
 #include "miniaudio.h"   // declarations only; the implementation lives in vendor/
+#include "config.h"      // TOIN_PITCH / TOIN_SKIP_MS tuning
 
 static ma_engine g_engine;
 static ma_sound  g_running;
 static ma_sound  g_music;
+static ma_sound  g_toin;        // crash sting: managed so we can pitch/seek it
 static int g_engineOk = 0;
 static int g_runningLoaded = 0;
 static int g_musicLoaded = 0;
+static int g_toinLoaded = 0;
 static int g_runningOn = 0;
 
 void audioInit(void) {
@@ -39,6 +42,16 @@ void audioInit(void) {
 		printf("[audio] could not load assets/drum.mp3\n");
 	}
 
+	// crash sting: decoded and kept around so each crash can pitch/seek it
+	// (the clip is long-winded; we speed it up and optionally trim the intro)
+	if (ma_sound_init_from_file(&g_engine, "assets/toin.mp3",
+	                            MA_SOUND_FLAG_DECODE, NULL, NULL, &g_toin) == MA_SUCCESS) {
+		ma_sound_set_pitch(&g_toin, TOIN_PITCH);
+		g_toinLoaded = 1;
+	} else {
+		printf("[audio] could not load assets/toin.mp3\n");
+	}
+
 	printf("[audio] engine started\n");
 }
 
@@ -51,6 +64,10 @@ void audioShutdown(void) {
 		ma_sound_uninit(&g_music);
 		g_musicLoaded = 0;
 	}
+	if (g_toinLoaded) {
+		ma_sound_uninit(&g_toin);
+		g_toinLoaded = 0;
+	}
 	if (g_engineOk) {
 		ma_engine_uninit(&g_engine);
 		g_engineOk = 0;
@@ -61,11 +78,23 @@ void audioPlay(SoundId id) {
 	if (!g_engineOk) {
 		return;
 	}
+	// fire-and-forget: miniaudio decodes and mixes each one, allowing overlap
+	if (id == SND_CRASH) {
+		// crash: the wall hit (fire-and-forget) plus the "toin" sting on top.
+		// the sting is sped up via pitch and can skip its slow intro via seek.
+		ma_engine_play_sound(&g_engine, "assets/hitting-wall.mp3", NULL);
+		if (g_toinLoaded) {
+			ma_uint32 sampleRate = ma_engine_get_sample_rate(&g_engine);
+			ma_uint64 skipFrames = (ma_uint64)((TOIN_SKIP_MS / 1000.0f) * sampleRate);
+			ma_sound_stop(&g_toin);                          // retrigger from the top
+			ma_sound_seek_to_pcm_frame(&g_toin, skipFrames); // trim the intro
+			ma_sound_start(&g_toin);
+		}
+		return;
+	}
 	const char *path =
 		id == SND_JUMP  ? "assets/boing.mp3" :
-		id == SND_SLIDE ? "assets/yoink.mp3" :
-		                  "assets/hitting-wall.mp3";
-	// fire-and-forget: miniaudio decodes and mixes it, allowing overlap
+		                  "assets/yoink.mp3";   // SND_SLIDE
 	ma_engine_play_sound(&g_engine, path, NULL);
 }
 

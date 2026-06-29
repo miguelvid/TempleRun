@@ -1,7 +1,11 @@
 # Temple Run 3D
 
-First-person endless runner: you run down a corridor with **3 lanes** and must dodge
+First-person runner: you run down a corridor with **3 lanes** and must dodge
 obstacles by changing lanes, jumping or ducking.
+
+## Gameplay
+Press `ENTER` on the menu to start. Run forever; speed rises with distance and
+the game ends when you crash into an obstacle.
 
 ## Obstacles
 - **Red (low):** JUMP over it.
@@ -16,6 +20,7 @@ obstacles by changing lanes, jumping or ducking.
 | Jump        | `Space`, `↑` or `W`   |
 | Duck        | `↓` or `S` (hold)     |
 | Restart     | `R` (on the end screen) |
+| Start / Restart | Left mouse click (on the menu or end screen) |
 
 Speed increases over time. Each obstacle you overtake is worth 1 point.
 
