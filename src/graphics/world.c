@@ -8,9 +8,11 @@
 #define WALL_HEIGHT 5.0f
 
 // Desenha um cubo colorido com contorno preto (ajuda a perceber profundidade).
-static void drawBox(float cx, float cy, float cz,
-                    float sx, float sy, float sz,
-                    float r, float g, float b) {
+static void drawBox(
+	float cx, float cy, float cz,
+	float sx, float sy, float sz,
+	float r, float g, float b
+) {
 	glPushMatrix();
 	glTranslatef(cx, cy, cz);
 	glScalef(sx, sy, sz);
@@ -76,7 +78,7 @@ void drawCorridor(float distance) {
 		}
 	glEnd();
 
-	// marcadores transversais que "rolam" para dar sensação de velocidade
+	// marcadores transversais que se mmovem para dar sensação de velocidade
 	glColor3f(0.30f, 0.30f, 0.36f);
 	glBegin(GL_LINES);
 		float offset = fmodf(distance, 4.0f);
