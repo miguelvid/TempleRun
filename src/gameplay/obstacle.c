@@ -41,7 +41,7 @@ void obstaclesUpdate(Obstacle *obstacles, float speed) {
 		}
 
 		obstacles[i].prevZ = obstacles[i].z;
-		obstacles[i].z += speed;
+		obstacles[i].z += speed;   // o mundo vem em direção à câmera (esteira)
 
 		if (obstacles[i].z > Z_REMOVE) {
 			obstacles[i].active = 0;

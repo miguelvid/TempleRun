@@ -242,22 +242,22 @@ void gameRender(void) {
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	// eye height interpolated by the crouch (COD-style slide)
+	// altura dos olhos interpolada pelo agachar (slide estilo COD)
 	eyeHeight = EYE_HEIGHT + (EYE_HEIGHT_DUCK - EYE_HEIGHT) * g.player.crouch;
-	eyeHeight += g.player.y;   // the camera rises with the jump
+	eyeHeight += g.player.y;   // a câmera sobe com o pulo
 	camX = g.player.x;
 
-	// during the slide: rolls the camera sideways and looks a bit down.
-	// during the jump: also looks down (as if looking at the legs).
-	// when changing lanes: banks into the move and looks toward the target lane.
-	// lateral > 0 means moving right; it decays as x reaches the target lane.
+	// durante o slide: inclina a câmera de lado e olha um pouco para baixo.
+	// durante o pulo: também olha para baixo (como se olhasse as pernas).
+	// ao trocar de pista: inclina para dentro do movimento e olha para a pista-alvo.
+	// lateral > 0 significa indo para a direita; decai conforme x chega à pista-alvo.
 	float lateral = laneToX(g.player.lane) - g.player.x;
 	float roll = g.player.crouch * CAM_ROLL_SLIDE + lateral * LANE_ROLL;
 	float upX = sinf(roll);
 	float upY = cosf(roll);
 	float dip = g.player.crouch * CAM_DIP_SLIDE + g.lookLegs * CAM_DIP_JUMP;
 
-	// first-person camera, looking into the corridor (-Z)
+	// câmera em primeira pessoa, olhando para dentro do corredor (-Z)
 	gluLookAt(camX, eyeHeight, camZ,
 	          camX + lateral * LANE_LOOK, eyeHeight - 0.1f - dip, camZ - 1.0f,
 	          upX, upY, 0.0f);

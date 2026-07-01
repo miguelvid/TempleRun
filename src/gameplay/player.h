@@ -2,13 +2,13 @@
 #define PLAYER_H
 
 typedef struct {
-	int lane;       // current lane (0=left, 1=middle, 2=right)
-	float x;        // interpolated X (smooth lateral movement)
-	float y;        // vertical offset (0 = ground)
-	float velY;     // vertical velocity during the jump
+	int lane;       // pista atual (0=esquerda, 1=meio, 2=direita)
+	float x;        // X interpolado (movimento lateral suave)
+	float y;        // deslocamento vertical (0 = chão)
+	float velY;     // velocidade vertical durante o pulo
 	int jumping;
 	int ducking;
-	float crouch;   // 0 = standing, 1 = fully sliding (animated)
+	float crouch;   // 0 = de pé, 1 = totalmente em slide (animado)
 } Player;
 
 void playerInit(Player *p);

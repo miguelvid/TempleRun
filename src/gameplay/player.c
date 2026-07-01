@@ -31,16 +31,16 @@ void playerJump(Player *p) {
 }
 
 void playerUpdate(Player *p) {
-	// smooth lateral movement toward the center of the target lane
+	// movimento lateral suave em direção ao centro da pista-alvo
 	float targetX = laneToX(p->lane);
 	p->x += (targetX - p->x) * LANE_LERP;
 
-	// quick slide transition (goes down fast, stands up a bit slower)
+	// transição rápida do slide (desce rápido, levanta um pouco mais devagar)
 	float targetCrouch = p->ducking ? 1.0f : 0.0f;
 	float rate = p->ducking ? CROUCH_DOWN_RATE : CROUCH_UP_RATE;
 	p->crouch += (targetCrouch - p->crouch) * rate;
 
-	// jump physics
+	// física do pulo
 	if (p->jumping) {
 		p->y += p->velY;
 		p->velY -= GRAVITY;

@@ -2,18 +2,18 @@
 #define OBSTACLE_H
 
 typedef enum {
-	OBST_LOW,     // low block: JUMP over it
-	OBST_HIGH,    // high bar: DUCK to pass under
-	OBST_BLOCK    // full block: CHANGE lane
+	OBST_LOW,     // bloco baixo: PULE por cima
+	OBST_HIGH,    // barra alta: AGACHE para passar embaixo
+	OBST_BLOCK    // bloco inteiro: MUDE de pista
 } ObstacleType;
 
 typedef struct {
 	int active;
 	int lane;
 	float z;
-	float prevZ;        // Z in the previous frame (swept collision, no tunneling)
+	float prevZ;        // Z no quadro anterior (colisão varrida, sem tunneling)
 	ObstacleType type;
-	int scored;         // already counted a point when overtaken
+	int scored;         // já contou ponto quando foi ultrapassado
 } Obstacle;
 
 void obstaclesInit(Obstacle *obstacles);

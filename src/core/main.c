@@ -94,7 +94,7 @@ static void setup(void) {
 	glClearColor(0.05f, 0.05f, 0.08f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
 
-	// fog: gives the corridor depth and softens how obstacles appear
+	// neblina: dá profundidade ao corredor e suaviza como os obstáculos surgem
 	glEnable(GL_FOG);
 	glFogi(GL_FOG_MODE, GL_LINEAR);
 	glFogfv(GL_FOG_COLOR, fogColor);
